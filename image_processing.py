@@ -1,46 +1,50 @@
-import torch
-from torchvision import transforms
-from torchvision.models import resnet50
+import pickle
 from PIL import Image
-import streamlit as st
 import io
-import speech_recognition as sr
+from transformers import BlipProcessor, BlipForConditionalGeneration
 
-# Load the pre-trained ResNet-50 model
-model = resnet50(pretrained=True)
-model.eval()
+def save_processor(processor):
+    with open('processor.pkl', 'wb') as f:
+        pickle.dump(processor, f)
+    print("Processor saved to disk.")
 
-# Define the transformation to preprocess the image before feeding it to the model
-preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+def load_processor():
+    with open('processor.pkl', 'rb') as f:
+        processor = pickle.load(f)
+    return processor
 
-# Load the ImageNet class labels
-with open("imagenet_labels.txt") as f:
-    labels = [line.strip() for line in f.readlines()]
+def save_model_and_processor():
+    # Load pre-trained model and processor
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
 
-# Initialize the speech recognizer
-recognizer = sr.Recognizer()
+    # Save processor and model to disk
+    with open('processor.pkl', 'wb') as f:
+        pickle.dump(processor, f)
 
-# Function to perform image recognition
-def recognize_image(image_file):
-    # Open the image file
-    image = Image.open(image_file).convert('RGB')  # Convert to RGB
+    with open('model.pkl', 'wb') as f:
+        pickle.dump(model, f)
 
-    # Preprocess the image
-    image = preprocess(image).unsqueeze(0)
+    print("Processor and model saved to disk.")
 
-    # Perform inference
-    with torch.no_grad():
-        outputs = model(image)
+def generate_caption(image_buffer, text=None):
+    try:
+        # Load the processor from disk
+        processor = load_processor()
 
-    # Get the predicted label index
-    _, predicted_idx = torch.max(outputs, 1)
-    predicted_idx = predicted_idx.item()
+        # Load the model from disk
+        with open('model.pkl', 'rb') as f:
+            model = pickle.load(f)
 
-    # Get the name of the predicted image class
-    predicted_class_name = labels[predicted_idx]
-    return predicted_class_name
+        image = Image.open(image_buffer).convert('RGB')
+        if text:
+            inputs = processor(image, text, return_tensors="pt")
+        else:
+            inputs = processor(image, return_tensors="pt")
+
+        out = model.generate(**inputs)
+        return processor.decode(out[0], skip_special_tokens=True)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+

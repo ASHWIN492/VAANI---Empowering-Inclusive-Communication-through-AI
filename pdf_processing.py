@@ -1,6 +1,5 @@
 import PyPDF2
-import io
-import pdf2image
+
 import pytesseract
 from pdf2image import convert_from_bytes
 import logging

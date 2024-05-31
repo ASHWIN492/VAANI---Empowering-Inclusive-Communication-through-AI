@@ -5,8 +5,9 @@ import streamlit as st
 import sounddevice as sd
 import soundfile as sf
 import os
+from transformers import BlipProcessor, BlipForConditionalGeneration
 from pdf_processing import read_text_from_pdf
-from image_processing import recognize_image
+from image_processing import generate_caption
 from text_to_speech import translate_text, convert_text_to_speech
 from braille_converter import braille_to_text
 from PIL import Image
@@ -127,40 +128,58 @@ def text_to_speech():
         else:
             st.warning("Please enter some text. 📝")
 
+
+
+# Initialize session state for queries and images
+if "queries" not in st.session_state:
+    st.session_state["queries"] = []
+
+if "images" not in st.session_state:
+    st.session_state["images"] = []
+
 def image_captioning_app():
-    st.title("Image Captioning")
+    # Load pre-trained model and processor
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
 
-    # Upload image
-    uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    # Title and file uploader
+    st.title("🖼️ Image Captioning App")
 
-    if uploaded_image is not None:
-        # Open the uploaded image file
-        image_file = io.BytesIO(uploaded_image.read())
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"], help="Upload your image here")
 
-        image = Image.open(image_file)
-        st.image(image, caption='Uploaded Image', use_column_width=True)
+    if uploaded_file is not None:
+        # Display uploaded image
+        image = Image.open(uploaded_file).convert('RGB')
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
-        # Generate caption button
+        # Generate caption for the uploaded image
         if st.button("Generate Caption"):
-            # Generate caption
-            predicted_label = recognize_image(image_file)
+            with st.spinner("Generating caption..."):
+                image_buffer = io.BytesIO(uploaded_file.getvalue())
+                # Convert the image buffer to PIL Image
+                image_pil = Image.open(image_buffer)
+                # Process the image and generate the caption
+                inputs = processor(images=image_pil, return_tensors="pt")
+                outputs = model.generate(**inputs)
+                response = processor.decode(outputs[0], skip_special_tokens=True)
+                st.success(f"**Response:** {response}")  # Only display response
 
-            # Display caption
-            st.subheader("Generated Caption")
-            st.write("Predicted label:", predicted_label)
+                # Convert the caption text to speech
+                audio_bytes = convert_text_to_speech(response, 'en')
+                st.audio(audio_bytes, format="audio/mp3", start_time=0)
 
-            # Convert text to speech
-            tts = gTTS(text=predicted_label, lang='en')
+                # Store the query and response in session state
+                st.session_state["queries"].append({"question": "What is the image description?", "response": response})
+                st.session_state["images"].append(uploaded_file.name)
 
-            # Save the speech to a temporary file
-            with tempfile.NamedTemporaryFile(delete=True) as fp:
-                tts.save(f"{fp.name}.mp3")
-                audio_file = open(f"{fp.name}.mp3", "rb")
-                audio_bytes = audio_file.read()
-
-            # Play the speech
-            st.audio(audio_bytes, format="audio/mp3", start_time=0)
-
+        # Sidebar to show history of queries
+        st.sidebar.title("📝 Query History")
+        if st.session_state["queries"]:
+            for idx, query in enumerate(st.session_state["queries"]):
+                st.sidebar.write(f"**Image:** {st.session_state['images'][idx]}")
+                st.sidebar.write(f"**Query:** {query['question']}")
+                st.sidebar.write(f"**Response:** {query['response']}")
+                                 
 def description():
     st.header("VAANI - Empowering Inclusive Communication through AI")
     st.write("""
@@ -175,13 +194,15 @@ def description():
 
        - **Educational benefits:** Blind students can access educational materials, including textbooks and lecture notes, in audio format, facilitating independent learning and improving academic performance. 📚
 
-    2. **Image Captioning:** Upload an image to generate a descriptive caption for it. This feature enables users to understand the content of images without relying on visual perception.  
-
-       - **Steps to use:**
-           1. Upload an image file.
-           2. Click the "Generate Caption" button. 🖼️
-
-       - **Educational benefits:** Blind students can comprehend visual content such as diagrams, charts, and illustrations, enhancing their understanding of complex concepts in subjects like science, mathematics, and geography. 🧠
+    2. **Image Captioning:** Upload an image to generate descriptive captions. It analyzes the content of the image and provides a verbal description of what is happening in the scene. 
+            This feature enables users to understand the context and details of the image without relying on sight. 
+            Additionally, VAANI converts the generated caption into speech, allowing users to listen to the description of the image.
+       
+        - **Steps to use:**
+        
+            1. Upload an image file.
+            2. Click the "Generate Caption" button. 🖼️
+            3. Educational Benefits: Enhance comprehension of visual content such as diagrams, charts, and illustrations, fostering a deeper understanding of various subjects. 🧠
 
     3. **Record Voice Note:** Start recording voice notes, which are saved for future reference. This functionality allows users to create audio recordings for personal memos or messages.  
 
@@ -203,10 +224,6 @@ def description():
     VAANI leverages cutting-edge AI technologies such as text-to-speech synthesis, image recognition, and natural language processing to make text-based and visual content more accessible for individuals with visual impairments. By converting text to audio, providing image descriptions, and supporting Braille text conversion, VAANI promotes greater independence and inclusion for its users. 🌟
     """)
 
-
-
-
-
 def handle_voice_command():
     st.write("Voice Command Instructions:")
     st.write("- Speak one of the following commands:")
@@ -218,8 +235,8 @@ def handle_voice_command():
     st.write("- Make sure your microphone is enabled and speak clearly.")
     st.write("")
 
-    command = None
-    while not command:
+    listening = True  # Variable to control the loop
+    while listening:
         r = sr.Recognizer()
         with sr.Microphone() as source:
             st.write("Speak a command...")
@@ -231,34 +248,40 @@ def handle_voice_command():
 
             if command.lower() == "text to speech":
                 text_to_speech()
+                listening = False  # Stop listening after executing the command
             elif command.lower() == "image description":
                 image_captioning_app()
+                listening = False  # Stop listening after executing the command
             elif command.lower() == "record voice note":
                 record_audio()
+                listening = False  # Stop listening after executing the command
             elif command.lower() == "read braille":
                 read_braille()
+                listening = False  # Stop listening after executing the command
             elif command.lower() == "description":
                 description()
+                listening = False  # Stop listening after executing the command
             else:
                 st.write("Invalid command. Please try again.")
-                command = None  # Reset command to None to continue the loop
+                # Don't reset command to None to continue the loop
 
         except sr.UnknownValueError:
             st.write("Sorry, I couldn't understand that command. Can you speak again?")
-            command = None  # Reset command to None to continue the loop
+            # Don't reset command to None to continue the loop
         except sr.RequestError as e:
             st.write(f"Error: {e}")
+            # Don't reset command to None to continue the loop
+
 
 
 # Define the pages dictionary after the function definitions
 pages = {
-    "voice Command":handle_voice_command,
+    "Voice Command": handle_voice_command,
     "Description": description,
     "Text-to-Speech": text_to_speech,
-    "Image-description": image_captioning_app,
+    "Image Description": image_captioning_app,
     "Record Voice Note": record_audio,
     "Read Braille": read_braille,
-    
 }
 
 # Add a sidebar for navigation
