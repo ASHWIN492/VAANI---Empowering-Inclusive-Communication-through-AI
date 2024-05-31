@@ -9,3 +9,4 @@ pdf2image
 pytesseract
 numpy
 tokenizers
+PortAudio
