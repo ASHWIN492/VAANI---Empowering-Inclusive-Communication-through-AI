@@ -7,5 +7,4 @@ transformers
 pdf2image
 pytesseract
 Pillow
-speech_recognition
 streamlit-option-menu
