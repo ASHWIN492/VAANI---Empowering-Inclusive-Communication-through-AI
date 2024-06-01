@@ -1,3 +1,4 @@
+import base64
 import io
 from gtts import gTTS
 from googletrans import Translator
@@ -15,6 +16,7 @@ import concurrent.futures
 from pathlib import Path
 import tempfile
 import speech_recognition as sr
+from streamlit_option_menu import option_menu
 
 # Dictionary mapping language codes to language names
 language_names = {
@@ -79,7 +81,7 @@ def record_audio():
     if st.button("Start Recording"):
         is_recording = True
         fs = 44100  # Sample rate
-        recording = sd.rec(int(10 * fs), samplerate=fs, channels=2)
+        recording = sd.rec(int(30 * fs), samplerate=fs, channels=2)
 
     if is_recording:
         with st.spinner("Recording..."):
@@ -181,7 +183,7 @@ def image_captioning_app():
                 st.sidebar.write(f"**Response:** {query['response']}")
                                  
 def description():
-    st.header("VAANI - Empowering Inclusive Communication through AI")
+    # st.header("VAANI - Empowering Inclusive Communication through AI")
     st.write("""
     VAANI is a software designed to empower blind and visually impaired individuals by providing inclusive access to various forms of content through AI-driven technologies. Here's how you can utilize its features:
 
@@ -271,25 +273,60 @@ def handle_voice_command():
         except sr.RequestError as e:
             st.write(f"Error: {e}")
             # Don't reset command to None to continue the loop
+    
+@st.cache_data
+def get_img_as_base64(file):
+    with open(file, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
+img = get_img_as_base64("image.jpg")
+page_bg_img = f"""
+<style>
+    [data-testid="stAppViewContainer"] > .main {{
+        background-image: url("https://img.freepik.com/free-vector/abstract-blue-circle-black-background-technology_1142-12714.jpg?size=626&ext=jpg&ga=GA1.1.1224184972.1712188800&semt=ais");
+        background-size: cover; /* Cover the entire container */
+        background-position: 30% center; /* Move the background image to the left */
+        background-repeat: no-repeat;
+        background-attachment: scroll; /* Scroll with the page */
+    }}
 
+    [data-testid="stSidebar"] > div:first-child {{
+        background-image: url("data:image/png;base64,{img}");
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed; /* Fixed position */
+    }}
 
-# Define the pages dictionary after the function definitions
-pages = {
-    "Voice Command": handle_voice_command,
-    "Description": description,
-    "Text-to-Speech": text_to_speech,
-    "Image Description": image_captioning_app,
-    "Record Voice Note": record_audio,
-    "Read Braille": read_braille,
-}
+    [data-testid="stHeader"] {{
+        background: rgba(0,0,0,0);
+    }}
 
-# Add a sidebar for navigation
-selection = st.sidebar.selectbox("Go to", list(pages.keys()))
+    [data-testid="stToolbar"] {{
+        right: 2rem;
+    }}
+</style>
+"""
 
-# If the selection is "Voice Command", handle the voice command
-if selection == "Voice Command":
+st.markdown(page_bg_img, unsafe_allow_html=True)
+st.title("VAANI - Empowering Inclusive Communication through AI")
+
+selected = option_menu(
+    menu_title=None,
+    options=["about", "Voice Command", "Text-to-Speech", "Image Description", "Record Voice Note", "Read Braille"],
+    icons=["file-person","mic","card-text","image","headset","chat"],
+    orientation="horizontal",
+)
+
+if selected == "about":
+    description()
+elif selected == "Voice Command":
     handle_voice_command()
-else:
-    # Call the selected function
-    pages[selection]()
+elif selected == "Text-to-Speech":
+    text_to_speech()
+elif selected == "Image Description":
+    image_captioning_app()
+elif selected == "Record Voice Note":
+    record_audio()
+elif selected == "Read Braille":
+    read_braille()
