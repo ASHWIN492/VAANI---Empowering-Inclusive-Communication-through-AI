@@ -7,7 +7,6 @@ transformers
 pdf2image
 pytesseract
 Pillow
-concurrent-futures
 tempfile
 speech_recognition
 streamlit-option-menu
