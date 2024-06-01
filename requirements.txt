@@ -1,0 +1,11 @@
+gtts
+googletrans
+streamlit
+sounddevice
+soundfile
+transformers
+pillow
+pdf2image
+pytesseract
+numpy
+tokenizers
