@@ -1,11 +1,14 @@
+base64
 gtts
 googletrans
 streamlit
 sounddevice
 soundfile
 transformers
-pillow
 pdf2image
 pytesseract
-numpy
-tokenizers
+Pillow
+concurrent-futures
+tempfile
+speech_recognition
+streamlit-option-menu
