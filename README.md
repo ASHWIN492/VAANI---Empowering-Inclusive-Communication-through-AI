@@ -40,3 +40,12 @@ Convert Braille text into speech. Users can input Braille text, and VAANI will c
     ```bash
    streamlit run app.py
    ```
+
+## Contributors
+
+| Name             | GitHub ID          |
+|------------------|--------------------|
+| Atharv Amit Gangrade         | [johndoe](https://github.com/johndoe)     |
+| Sagar Chaudhary       | [janesmith](https://github.com/janesmith) |
+
+    
