@@ -45,7 +45,7 @@ Convert Braille text into speech. Users can input Braille text, and VAANI will c
 
 | Name             | GitHub ID          |
 |------------------|--------------------|
-| Atharv Amit Gangrade         | [johndoe](https://github.com/athhhh)     |
-| Sagar Chaudhary       | [janesmith](https://github.com/SAGARCHRY0777) |
+| Atharv Amit Gangrade         | [athhhh](https://github.com/athhhh)     |
+| Sagar Chaudhary       | [SAGARCHRY0777](https://github.com/SAGARCHRY0777) |
 
     
